@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Asset Extractor — Read all annotated asset positions from a Konva.js floorplan" />
+  <title>Asset Extractor — AssetBot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/extract.css" />
+</head>
+
+<body>
+  <!-- Animated Background -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3" style="background:radial-gradient(circle,hsl(260,80%,65%),transparent)"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon"><i class="fa-solid fa-vector-square"></i></div>
+        <div class="logo-text">
+          <span class="logo-title">AssetBot</span>
+          <span class="logo-sub">Annotation Automation</span>
+        </div>
+      </div>
+
+      <!-- Page Nav -->
+      <nav class="page-nav">
+        <a href="/" class="page-nav-link">
+          <i class="fa-solid fa-robot"></i> Annotate
+        </a>
+        <a href="/extract" class="page-nav-link active">
+          <i class="fa-solid fa-magnifying-glass-location"></i> Extract
+        </a>
+      </nav>
+
+      <div class="header-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-label" id="statusLabel">Idle</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ── Step 1: URL Config ── -->
+    <section class="card">
+      <div class="card-header">
+        <div class="step-badge" style="background:linear-gradient(135deg,hsl(260,80%,60%),hsl(300,70%,60%));">01</div>
+        <div>
+          <h2 class="card-title">Floorplan URL</h2>
+          <p class="card-subtitle">Enter the URL of the floorplan containing annotated assets</p>
+        </div>
+        <div class="card-icon"><i class="fa-solid fa-link"></i></div>
+      </div>
+
+      <div class="config-grid">
+        <div class="config-group full-width">
+          <label class="config-label" for="extractUrl">
+            <i class="fa-solid fa-globe"></i> Floorplan URL to Extract From
+          </label>
+          <input type="text" id="extractUrl" class="config-input"
+            placeholder="https://your-dashboard.com/floorplan/..." />
+        </div>
+
+        <div class="config-group">
+          <label class="config-label" for="exDebugger">
+            <i class="fa-solid fa-plug"></i> Chrome Debugger Address
+          </label>
+          <input type="text" id="exDebugger" class="config-input" placeholder="127.0.0.1:9222" value="127.0.0.1:9222" />
+        </div>
+
+        <div class="config-group">
+          <label class="config-label" for="exSearchBar">
+            <i class="fa-solid fa-magnifying-glass"></i> Search Bar Selector (for verify)
+          </label>
+          <input type="text" id="exSearchBar" class="config-input config-mono" placeholder="input.search-field" />
+        </div>
+      </div>
+
+      <div class="config-actions" style="margin-top:18px;">
+        <div class="chrome-hint">
+          <i class="fa-brands fa-chrome"></i>
+          Chrome must be running with:
+          <code>chrome.exe --remote-debugging-port=9222</code>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 2: Verify Page ── -->
+    <section class="card" id="ex-card-verify">
+      <div class="card-header">
+        <div class="step-badge" style="background:linear-gradient(135deg,hsl(260,80%,60%),hsl(300,70%,60%));">02</div>
+        <div>
+          <h2 class="card-title">Verify Page</h2>
+          <p class="card-subtitle">Connect to Chrome and confirm the floorplan loaded correctly</p>
+        </div>
+        <div class="card-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      </div>
+
+      <!-- Phase A -->
+      <div id="exVerifyPhaseA" style="margin-bottom:20px;">
+        <p class="verify-instruction">
+          <i class="fa-solid fa-circle-info"></i>
+          Make sure you are <strong>logged in</strong> and the floorplan is visible in Chrome before connecting.
+        </p>
+        <button class="btn btn-extract" id="exVerifyBtn" onclick="exVerifyPage()">
+          <i class="fa-solid fa-satellite-dish"></i>
+          <span>Connect &amp; Navigate</span>
+        </button>
+      </div>
+
+      <!-- Phase B: results (hidden) -->
+      <div id="exVerifyPhaseB" class="hidden">
+        <div class="verify-results" id="exVerifyResults">
+          <div class="verify-tile" id="exTileChrome">
+            <div class="verify-tile-icon"><i class="fa-brands fa-chrome"></i></div>
+            <div class="verify-tile-body">
+              <span class="verify-tile-label">Chrome Connection</span>
+              <span class="verify-tile-value" id="exTileChromeVal">—</span>
+            </div>
+            <div class="verify-tile-status" id="exTileChromeStatus"></div>
+          </div>
+          <div class="verify-tile" id="exTilePage">
+            <div class="verify-tile-icon"><i class="fa-solid fa-globe"></i></div>
+            <div class="verify-tile-body">
+              <span class="verify-tile-label">Page Title</span>
+              <span class="verify-tile-value" id="exTilePageVal">—</span>
+            </div>
+            <div class="verify-tile-status" id="exTilePageStatus"></div>
+          </div>
+          <div class="verify-tile" id="exTileKonva">
+            <div class="verify-tile-icon"><i class="fa-solid fa-layer-group"></i></div>
+            <div class="verify-tile-body">
+              <span class="verify-tile-label">Konva.js Stage</span>
+              <span class="verify-tile-value" id="exTileKonvaVal">—</span>
+            </div>
+            <div class="verify-tile-status" id="exTileKonvaStatus"></div>
+          </div>
+        </div>
+
+        <!-- Confirm -->
+        <div class="confirm-box" id="exConfirmBox">
+          <div class="confirm-icon"><i class="fa-solid fa-eye"></i></div>
+          <div class="confirm-body">
+            <p class="confirm-question">Can you see the annotated floorplan in Chrome?</p>
+            <p class="confirm-hint">Verify all assets are visible on the canvas before extracting.</p>
+          </div>
+          <div class="confirm-actions">
+            <button class="btn btn-confirm-yes" onclick="exConfirmPage(true)">
+              <i class="fa-solid fa-check"></i> Yes, ready to extract
+            </button>
+            <button class="btn btn-confirm-no" onclick="exConfirmPage(false)">
+              <i class="fa-solid fa-xmark"></i> No, retry
+            </button>
+          </div>
+        </div>
+
+        <div class="verified-badge hidden" id="exVerifiedBadge">
+          <i class="fa-solid fa-circle-check"></i>
+          Page verified — ready to extract!
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 3: Extract ── -->
+    <section class="card card-locked" id="ex-card-extract">
+      <div class="lock-overlay" id="exLockOverlay">
+        <i class="fa-solid fa-lock"></i>
+        <span>Please verify the page first (Step 02)</span>
+      </div>
+
+      <div class="card-header">
+        <div class="step-badge step-badge-locked" id="exRunBadge"
+          style="background:linear-gradient(135deg,hsl(260,80%,60%),hsl(300,70%,60%));">03</div>
+        <div>
+          <h2 class="card-title">Extract Assets</h2>
+          <p class="card-subtitle">Read all Konva node positions from the live floorplan</p>
+        </div>
+        <div class="card-icon"><i class="fa-solid fa-magnifying-glass-location"></i></div>
+      </div>
+
+      <div class="extract-controls">
+        <button class="btn btn-extract btn-run" id="exExtractBtn" onclick="doExtract()" disabled>
+          <i class="fa-solid fa-crosshairs"></i>
+          <span>Extract All Assets</span>
+        </button>
+        <button class="btn btn-secondary hidden" id="exReverifyBtn" onclick="exResetVerify()">
+          <i class="fa-solid fa-rotate"></i> Re-verify
+        </button>
+      </div>
+
+      <!-- Extraction summary chips -->
+      <div class="extract-summary hidden" id="extractSummary">
+        <div class="summary-chip">
+          <i class="fa-solid fa-database"></i>
+          <span id="sumTotal">0</span> assets found
+        </div>
+        <div class="summary-chip">
+          <i class="fa-solid fa-globe"></i>
+          <span id="sumPage">—</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 4: Results Table ── -->
+    <section class="card hidden" id="ex-card-results">
+      <div class="card-header">
+        <div class="step-badge" style="background:linear-gradient(135deg,hsl(260,80%,60%),hsl(300,70%,60%));">04</div>
+        <div>
+          <h2 class="card-title">Extracted Assets</h2>
+          <p class="card-subtitle" id="resultsSubtitle">—</p>
+        </div>
+        <div class="result-actions">
+          <button class="btn btn-secondary" onclick="exportCSV()">
+            <i class="fa-solid fa-file-csv"></i> CSV
+          </button>
+          <button class="btn btn-extract" onclick="exportExcel()">
+            <i class="fa-solid fa-file-excel"></i> Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter + sort bar -->
+      <div class="table-toolbar">
+        <div class="search-box">
+          <i class="fa-solid fa-filter"></i>
+          <input type="text" id="tableFilter" placeholder="Filter by ID or type…" oninput="filterTable()" />
+        </div>
+        <div class="table-info" id="tableInfo"></div>
+      </div>
+
+      <div class="results-table-wrap">
+        <table class="results-table" id="resultsTable">
+          <thead>
+            <tr>
+              <th onclick="sortTable('index')">#<i class="fa-solid fa-sort sort-icon"></i></th>
+              <th onclick="sortTable('id')">ID / Name<i class="fa-solid fa-sort sort-icon"></i></th>
+              <th onclick="sortTable('type')">Type<i class="fa-solid fa-sort sort-icon"></i></th>
+              <th onclick="sortTable('x')">X<i class="fa-solid fa-sort sort-icon"></i></th>
+              <th onclick="sortTable('y')">Y<i class="fa-solid fa-sort sort-icon"></i></th>
+              <th onclick="sortTable('width')">W<i class="fa-solid fa-sort sort-icon"></i></th>
+              <th onclick="sortTable('height')">H<i class="fa-solid fa-sort sort-icon"></i></th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/static/extract.js"></script>
+</body>
+
+</html>

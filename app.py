@@ -277,8 +277,20 @@ def verify_page():
 
         # ── 2. Navigate ─────────────────────────────────────────
         try:
-            driver.get(login_url)
-            time.sleep(2)          # allow JS to settle
+            if driver.current_url.rstrip('/') != login_url.rstrip('/'):
+                driver.get(login_url)
+                
+                # ── Dynamic Wait for Search Bar ─────────────────────
+                from selenium.webdriver.common.by import By
+                max_wait = 10  # 10 seconds total
+                found_bar = False
+                for _ in range(max_wait * 2):
+                    try:
+                        if driver.find_elements(By.CSS_SELECTOR, search_bar_selector):
+                            found_bar = True
+                            break
+                    except: pass
+                    time.sleep(0.5)
         except Exception as e:
             return jsonify({
                 "status":  "error",
@@ -362,6 +374,175 @@ def stream_logs():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+# ── Extractor feature ──────────────────────────────────────────
+@app.route('/extract')
+def extract_page():
+    return render_template('extract.html')
+
+
+@app.route('/api/extract-assets', methods=['POST'])
+def extract_assets():
+    """
+    Connect to Chrome (or reuse existing session), navigate to the given URL,
+    then run a Konva.js script to collect every placed asset's position.
+    """
+    global chrome_driver, current_config
+
+    data   = request.json or {}
+    config = {**current_config, **data}
+    current_config.update({k: v for k, v in data.items() if v})
+
+    extract_url      = config.get("extract_url") or config.get("login_url", "")
+    debugger_address = config.get("debugger_address", "127.0.0.1:9222")
+
+    # ── 1. Connect ──────────────────────────────────────────────
+    try:
+        driver = _get_driver(debugger_address)
+        chrome_driver = driver
+    except Exception as e:
+        return jsonify({"status": "error", "step": "connect",
+                        "message": f"Could not connect to Chrome: {e}"}), 500
+
+    # ── 2. Navigate (Only if needed) ────────────────────────────
+    try:
+        current_url = driver.current_url.rstrip('/')
+        target_url  = extract_url.rstrip('/')
+        
+        if current_url != target_url and target_url:
+            driver.get(extract_url)
+            
+            # ── 2a. Dynamic Wait for Konva and Stage ────────────────
+            # Instead of a hard sleep, we poll to see when the page is ready
+            max_retries = 20  # 10 seconds total (20 * 0.5s)
+            found_ready = False
+            
+            for i in range(max_retries):
+                # Small probe script
+                probe = driver.execute_script("return (typeof Konva !== 'undefined' && Konva.stages && Konva.stages.length > 0);")
+                if probe:
+                    found_ready = True
+                    break
+                time.sleep(0.5)
+            
+            if not found_ready:
+                # One last short sleep as a safety buffer
+                time.sleep(2)
+    except Exception as e:
+        return jsonify({"status": "error", "step": "navigate",
+                        "message": f"Navigation failed: {e}"}), 500
+
+    # ── 3. Extract Konva nodes ──────────────────────────────────
+    extract_script = """
+    try {
+        // Robust Konva Check
+        if (typeof Konva === 'undefined') {
+            return {error: 'Konva.js not detected on this page. Wait for load or check if it is encapsulated.'};
+        }
+        
+        // Find the stage — try stages array first, then Konva instance if available
+        let stage = null;
+        if (Konva.stages && Konva.stages.length > 0) {
+            stage = Konva.stages[0];
+        } else {
+            // Some apps might have it elsewhere, but Konva.stages is the standard
+            return {error: 'Konva detected, but no Stage found. Try zooming/panning in the browser first.'};
+        }
+
+        const results = [];
+        const seen    = new Set();
+
+        // Search for all visual nodes
+        stage.find('Image, Circle, Rect, Group, Path').forEach(function(node, i) {
+            const pos  = node.getAbsolutePosition();
+            const x    = Math.round(pos.x);
+            const y    = Math.round(pos.y);
+
+            // Skip background panels (usually huge nodes)
+            const w = node.width  ? node.width()  : 0;
+            const h = node.height ? node.height()  : 0;
+            if (w > 2500 || h > 2500) return;
+
+            // Deduplicate by position to avoid double-counting overlaid groups/nodes
+            const key = x + ',' + y;
+            if (seen.has(key)) return;
+            seen.add(key);
+
+            // Best-effort ID resolution
+            const nodeId =
+                node.id()                  ||
+                node.name()                ||
+                node.attrs.assetId         ||
+                node.attrs.asset_id        ||
+                node.attrs.itemId          ||
+                node.attrs.nodeId          ||
+                node.attrs._id             ||
+                node.attrs.label           ||
+                '';
+
+            results.push({
+                index:  results.length + 1,
+                id:     nodeId,
+                type:   node.getClassName(),
+                x:      x,
+                y:      y,
+                width:  w ? Math.round(w) : null,
+                height: h ? Math.round(h) : null
+            });
+        });
+
+        return {
+            status:     'ok',
+            page_title: document.title,
+            count:      results.length,
+            assets:     results
+        };
+    } catch(e) {
+        return {error: 'Script Error: ' + e.toString()};
+    }
+    """
+    try:
+        result = driver.execute_script(extract_script)
+        if not result:
+            return jsonify({"status": "error", "message": "Script returned nothing"}), 500
+        if "error" in result:
+            return jsonify({"status": "error", "message": result["error"]}), 500
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Script execution failed: {e}"}), 500
+
+
+@app.route('/api/download-extracted', methods=['POST'])
+def download_extracted():
+    """Convert extracted asset list to Excel and stream it back."""
+    try:
+        import pandas as pd
+        import io
+        data   = request.json or {}
+        assets = data.get("assets", [])
+        if not assets:
+            return jsonify({"error": "No assets to export"}), 400
+
+        df = pd.DataFrame(assets)
+        # Reorder columns nicely
+        cols = [c for c in ['index', 'id', 'type', 'x', 'y', 'width', 'height'] if c in df.columns]
+        df   = df[cols]
+
+        buf = io.BytesIO()
+        with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Extracted Assets')
+        buf.seek(0)
+
+        from flask import send_file
+        return send_file(
+            buf,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='extracted_assets.xlsx'
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':
