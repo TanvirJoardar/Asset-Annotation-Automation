@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Asset Annotation Automation — Intelligent floorplan asset placement powered by Selenium and Konva.js" />
+  <title>Asset Annotation Automation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <!-- Animated Background -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon"><i class="fa-solid fa-vector-square"></i></div>
+        <div class="logo-text">
+          <span class="logo-title">AssetBot</span>
+          <span class="logo-sub">Annotation Automation</span>
+        </div>
+      </div>
+      <div class="header-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-label" id="statusLabel">Idle</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- ── Step 1: Upload ── -->
+    <section class="card" id="card-upload">
+      <div class="card-header">
+        <div class="step-badge">01</div>
+        <div>
+          <h2 class="card-title">Upload Asset List</h2>
+          <p class="card-subtitle">Upload your Excel file with ID, X, Y coordinates</p>
+        </div>
+        <div class="card-icon"><i class="fa-solid fa-file-excel"></i></div>
+      </div>
+
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden />
+        <div class="drop-zone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+        <p class="drop-zone-text">Drop your Excel file here</p>
+        <p class="drop-zone-hint">or <span class="link" onclick="document.getElementById('fileInput').click()">browse
+            files</span></p>
+        <p class="drop-zone-formats"><i class="fa-regular fa-file"></i> .xlsx &nbsp;•&nbsp; .xls &nbsp;•&nbsp; .csv</p>
+      </div>
+
+      <div class="file-info hidden" id="fileInfo">
+        <div class="file-info-icon"><i class="fa-solid fa-table"></i></div>
+        <div class="file-info-details">
+          <span class="file-info-name" id="fileName">—</span>
+          <span class="file-info-meta" id="fileMeta">—</span>
+        </div>
+        <div class="file-info-columns" id="fileColumns"></div>
+      </div>
+    </section>
+
+    <!-- ── Step 2: Configure ── -->
+    <section class="card" id="card-config">
+      <div class="card-header">
+        <div class="step-badge">02</div>
+        <div>
+          <h2 class="card-title">Configuration</h2>
+          <p class="card-subtitle">Set selectors, URL and connection settings</p>
+        </div>
+        <div class="card-icon"><i class="fa-solid fa-sliders"></i></div>
+      </div>
+
+      <div class="config-grid">
+        <div class="config-group full-width">
+          <label class="config-label" for="loginUrl">
+            <i class="fa-solid fa-link"></i> Floorplan URL
+          </label>
+          <input type="text" id="loginUrl" class="config-input"
+            placeholder="https://your-dashboard-url.com/floorplan/..." />
+        </div>
+
+        <div class="config-group">
+          <label class="config-label" for="columnName">
+            <i class="fa-solid fa-table-columns"></i> ID Column Name
+          </label>
+          <input type="text" id="columnName" class="config-input" placeholder="ID" />
+        </div>
+
+        <div class="config-group">
+          <label class="config-label" for="debuggerAddress">
+            <i class="fa-solid fa-plug"></i> Chrome Debugger
+          </label>
+          <input type="text" id="debuggerAddress" class="config-input" placeholder="127.0.0.1:9222" />
+        </div>
+
+        <div class="config-group">
+          <label class="config-label" for="searchBarSelector">
+            <i class="fa-solid fa-magnifying-glass"></i> Search Bar Selector
+          </label>
+          <input type="text" id="searchBarSelector" class="config-input config-mono" placeholder="input.search-field" />
+        </div>
+
+        <div class="config-group">
+          <label class="config-label" for="searchButtonSelector">
+            <i class="fa-solid fa-computer-mouse"></i> Search Button Selector
+          </label>
+          <input type="text" id="searchButtonSelector" class="config-input config-mono"
+            placeholder=".fa-magnifying-glass" />
+        </div>
+
+        <div class="config-group">
+          <label class="config-label" for="resultItemSelector">
+            <i class="fa-solid fa-list"></i> Result Item Selector
+          </label>
+          <input type="text" id="resultItemSelector" class="config-input config-mono" placeholder=".search-item" />
+        </div>
+
+        <div class="config-group">
+          <label class="config-label" for="canvasSelector">
+            <i class="fa-solid fa-layer-group"></i> Canvas Selector
+          </label>
+          <input type="text" id="canvasSelector" class="config-input config-mono"
+            placeholder="div.konvajs-content canvas" />
+        </div>
+
+        <div class="config-group half">
+          <label class="config-label" for="adjustX">
+            <i class="fa-solid fa-left-right"></i> Adjust X
+          </label>
+          <input type="number" id="adjustX" class="config-input" placeholder="6" />
+        </div>
+
+        <div class="config-group half">
+          <label class="config-label" for="adjustY">
+            <i class="fa-solid fa-up-down"></i> Adjust Y
+          </label>
+          <input type="number" id="adjustY" class="config-input" placeholder="6" />
+        </div>
+      </div>
+
+      <div class="config-actions">
+        <button class="btn btn-secondary" id="saveConfigBtn" onclick="saveConfig()">
+          <i class="fa-solid fa-floppy-disk"></i> Save Config
+        </button>
+        <div class="chrome-hint">
+          <i class="fa-brands fa-chrome"></i>
+          Start Chrome with:
+          <code>chrome.exe --remote-debugging-port=9222</code>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 3: Verify Page ── -->
+    <section class="card" id="card-verify">
+      <div class="card-header">
+        <div class="step-badge">03</div>
+        <div>
+          <h2 class="card-title">Verify Page</h2>
+          <p class="card-subtitle">Connect to Chrome and confirm the floorplan is ready</p>
+        </div>
+        <div class="card-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      </div>
+
+      <!-- Phase A: Connect button -->
+      <div id="verifyPhaseA" style="margin-bottom: 20px;">
+        <p class="verify-instruction">
+          <i class="fa-solid fa-circle-info"></i>
+          Make sure Chrome is open with <strong>--remote-debugging-port=9222</strong>
+          and you are logged into the floorplan dashboard.
+        </p>
+        <button class="btn btn-primary" id="verifyBtn" onclick="verifyPage()">
+          <i class="fa-solid fa-satellite-dish"></i>
+          <span>Connect &amp; Navigate</span>
+        </button>
+      </div>
+
+      <!-- Phase B: Results + confirmation (hidden until verify completes) -->
+      <div id="verifyPhaseB" class="hidden">
+
+        <!-- Connection result tiles -->
+        <div class="verify-results" id="verifyResults">
+          <div class="verify-tile" id="tileChromeConnect">
+            <div class="verify-tile-icon"><i class="fa-brands fa-chrome"></i></div>
+            <div class="verify-tile-body">
+              <span class="verify-tile-label">Chrome Connection</span>
+              <span class="verify-tile-value" id="tileConnectVal">—</span>
+            </div>
+            <div class="verify-tile-status" id="tileConnectStatus"></div>
+          </div>
+          <div class="verify-tile" id="tilePageLoad">
+            <div class="verify-tile-icon"><i class="fa-solid fa-globe"></i></div>
+            <div class="verify-tile-body">
+              <span class="verify-tile-label">Page Title</span>
+              <span class="verify-tile-value" id="tilePageVal">—</span>
+            </div>
+            <div class="verify-tile-status" id="tilePageStatus"></div>
+          </div>
+          <div class="verify-tile" id="tileSearchBar">
+            <div class="verify-tile-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+            <div class="verify-tile-body">
+              <span class="verify-tile-label">Search Bar Detected</span>
+              <span class="verify-tile-value" id="tileSearchVal">—</span>
+            </div>
+            <div class="verify-tile-status" id="tileSearchStatus"></div>
+          </div>
+        </div>
+
+        <!-- Human confirmation -->
+        <div class="confirm-box" id="confirmBox">
+          <div class="confirm-icon"><i class="fa-solid fa-eye"></i></div>
+          <div class="confirm-body">
+            <p class="confirm-question">Can you see the floorplan and search bar in Chrome?</p>
+            <p class="confirm-hint">Look at your Chrome window — verify the page loaded and the search bar is visible
+              before proceeding.</p>
+          </div>
+          <div class="confirm-actions">
+            <button class="btn btn-confirm-yes" id="confirmYesBtn" onclick="confirmPage(true)">
+              <i class="fa-solid fa-check"></i> Yes, I can see it
+            </button>
+            <button class="btn btn-confirm-no" id="confirmNoBtn" onclick="confirmPage(false)">
+              <i class="fa-solid fa-xmark"></i> No, retry
+            </button>
+          </div>
+        </div>
+
+        <!-- Verified badge (shown after Yes) -->
+        <div class="verified-badge hidden" id="verifiedBadge">
+          <i class="fa-solid fa-circle-check"></i>
+          Page verified — ready to annotate!
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 4: Run Automation ── -->
+    <section class="card card-locked" id="card-run">
+      <div class="card-header">
+        <div class="step-badge step-badge-locked" id="runStepBadge">04</div>
+        <div>
+          <h2 class="card-title">Start Annotation</h2>
+          <p class="card-subtitle">Automatically place all assets on the floorplan</p>
+        </div>
+        <div class="card-icon"><i class="fa-solid fa-robot"></i></div>
+      </div>
+
+      <!-- Lock overlay -->
+      <div class="lock-overlay" id="lockOverlay">
+        <i class="fa-solid fa-lock"></i>
+        <span>Please upload an Excel file (Step 01) and verify the page (Step 03)</span>
+      </div>
+
+      <div class="run-controls">
+        <button class="btn btn-primary btn-run" id="startBtn" onclick="startAutomation()" disabled>
+          <i class="fa-solid fa-play"></i>
+          <span>Start Annotation</span>
+        </button>
+        <button class="btn btn-danger hidden" id="stopBtn" onclick="stopAutomation()">
+          <i class="fa-solid fa-stop"></i>
+          <span>Stop</span>
+        </button>
+        <button class="btn btn-secondary hidden" id="reverifyBtn" onclick="resetVerify()">
+          <i class="fa-solid fa-rotate"></i> Re-verify
+        </button>
+      </div>
+
+      <div class="progress-bar-container hidden" id="progressContainer">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressFill"></div>
+          <div class="progress-bar-shimmer"></div>
+        </div>
+        <span class="progress-label" id="progressLabel">Processing…</span>
+      </div>
+
+      <div class="stats-row hidden" id="statsRow">
+        <div class="stat-card">
+          <i class="fa-solid fa-check-circle stat-icon success"></i>
+          <div>
+            <span class="stat-value" id="statSuccess">0</span>
+            <span class="stat-label">Succeeded</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fa-solid fa-triangle-exclamation stat-icon warning"></i>
+          <div>
+            <span class="stat-value" id="statFailed">0</span>
+            <span class="stat-label">Failed</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fa-solid fa-clock stat-icon info"></i>
+          <div>
+            <span class="stat-value" id="statElapsed">0s</span>
+            <span class="stat-label">Elapsed</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Step 5: Live Logs ── -->
+    <section class="card" id="card-logs">
+      <div class="card-header">
+        <div class="step-badge">05</div>
+        <div>
+          <h2 class="card-title">Live Logs</h2>
+          <p class="card-subtitle">Real-time automation output</p>
+        </div>
+        <div class="log-actions">
+          <button class="btn-icon" onclick="clearLogs()" title="Clear logs"><i class="fa-solid fa-trash"></i></button>
+          <button class="btn-icon" onclick="downloadLogs()" title="Download logs"><i
+              class="fa-solid fa-download"></i></button>
+          <div class="card-icon"><i class="fa-solid fa-terminal"></i></div>
+        </div>
+      </div>
+      <div class="log-container" id="logContainer">
+        <div class="log-empty">
+          <i class="fa-solid fa-satellite-dish"></i>
+          <p>Logs will appear here once verification starts</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+
+</html>
