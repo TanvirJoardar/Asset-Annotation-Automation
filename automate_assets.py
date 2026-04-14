@@ -24,8 +24,8 @@ RESULT_ITEM_SELECTOR = ".search-item"
 # CSS Selector for the floorplan canvas
 CANVAS_SELECTOR = "div.konvajs-content canvas"
 # Where the asset appears by default after selection
-Adjust_X = 6 
-Adjust_Y = 6
+Adjust_X = 6 # half of Circle height/width
+Adjust_Y = 6 # half of Circle height/width
 # ---------------------------------------------
 
 def automate_asset_placement():

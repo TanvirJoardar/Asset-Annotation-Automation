@@ -4,8 +4,8 @@
 
 let extractedAssets = [];
 let pageVerified = false;
-let Adjust_X = 6
-let Adjust_Y = 6
+let Adjust_X = 6;  // half of Circle height/width
+let Adjust_Y = 21; // half of Circle height/width + 15(padding-top)
 
 document.addEventListener('DOMContentLoaded', () => {
     loadConfig();
@@ -19,10 +19,16 @@ async function loadConfig() {
         if (cfg.login_url) document.getElementById('extractUrl').value = cfg.login_url;
         if (cfg.debugger_address) document.getElementById('exDebugger').value = cfg.debugger_address;
         if (cfg.search_bar_selector) document.getElementById('exSearchBar').value = cfg.search_bar_selector;
-        
-        // Sync adjustments with global config if present
-        if (cfg.adjust_x !== undefined) Adjust_X = parseFloat(cfg.adjust_x);
-        if (cfg.adjust_y !== undefined) Adjust_Y = parseFloat(cfg.adjust_y);
+
+        // Use config values if provided, but default to the user's specific extraction offsets
+        if (cfg.adjust_x !== undefined && cfg.adjust_x !== null) Adjust_X = parseFloat(cfg.adjust_x);
+        // If the main config says 6 for Y, but we want 6+15 (21) for extraction, 
+        // we keep 21 unless the config specifically has a different override.
+        if (cfg.adjust_y !== undefined && cfg.adjust_y !== null) {
+            // Note: If the user explicitly set 6 in config, we might want to still add the 15?
+            // The request says "Adjust_Y = 6 + 15". I will stick to 21 as the hard baseline.
+            Adjust_Y = parseFloat(cfg.adjust_y) + 15;
+        }
     } catch (_) { }
 }
 
@@ -165,7 +171,7 @@ async function doExtract() {
                 x: a.x - Adjust_X,
                 y: a.y - Adjust_Y
             }));
-            
+
             renderTable(extractedAssets);
 
             document.getElementById('sumTotal').textContent = data.count;
