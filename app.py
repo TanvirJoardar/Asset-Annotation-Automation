@@ -122,9 +122,10 @@ def run_automation(config):
                 send_log("⛔ Automation stopped by user.", "warning")
                 break
 
-            item_id  = item['id']
-            target_x = item['x'] + adjust_x
-            target_y = item['y'] + adjust_y
+            # item_id  = item['id']
+            item_id = int(float(item['id']))
+            target_x = float(item['x']) + adjust_x
+            target_y = float(item['y']) + adjust_y
 
             try:
                 send_log(f"[{i+1}/{len(ids_data)}] Processing: {item_id} → ({item['x']}, {item['y']})", "info")
