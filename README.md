@@ -1,19 +1,26 @@
 # Asset Annotation Automation
 
-A Flask-based web application for automating asset annotation on Konva.js-powered floorplan dashboards. The tool connects to a running Chrome instance, reads asset IDs and coordinates from an Excel file, then programmatically searches and positions each asset on the canvas.
+A web application for automating asset annotation on Konva.js-powered floorplan dashboards. The tool connects to a running Chrome instance, reads asset IDs and coordinates from an Excel file, then programmatically searches and positions each asset on the canvas.
+
+## Tech Stack
+
+- **Frontend:** React 18 + Vite + React Router
+- **Backend:** Flask (Python) — API server + Selenium automation
+- **Styling:** Custom CSS (dark dashboard theme)
 
 ## Features
 
-- **Batch Annotation** – Upload an Excel file with asset IDs and X/Y coordinates, then automatically search and place each asset on the floorplan.
-- **Asset Extraction** – Extract all placed assets and their positions from the Konva.js canvas into an Excel file.
-- **Live Log Streaming** – Real-time progress updates via Server-Sent Events (SSE).
-- **Chrome Debugging** – Connects to an existing Chrome session via remote debugging, so you stay logged in.
+- **Batch Annotation** — Upload an Excel file with asset IDs and X/Y coordinates, then automatically search and place each asset on the floorplan.
+- **Asset Extraction** — Extract all placed assets and their positions from the Konva.js canvas into an Excel file.
+- **Live Log Streaming** — Real-time progress updates via Server-Sent Events (SSE).
+- **Chrome Debugging** — Connects to an existing Chrome session via remote debugging, so you stay logged in.
 
 ## Prerequisites
 
 - **Python 3.9+**
+- **Node.js 18+** (for frontend dev/build)
 - **Google Chrome** (latest stable)
-- **ChromeDriver** – automatically managed by `webdriver-manager`
+- **ChromeDriver** — automatically managed by `webdriver-manager`
 
 ## Installation
 
@@ -24,7 +31,7 @@ A Flask-based web application for automating asset annotation on Konva.js-powere
    cd Asset-Annotation-Automation
    ```
 
-2. Create and activate a virtual environment (recommended):
+2. Set up the Python backend:
 
    ```bash
    python -m venv venv
@@ -32,23 +39,21 @@ A Flask-based web application for automating asset annotation on Konva.js-powere
    venv\Scripts\activate
    # macOS / Linux
    source venv/bin/activate
-   ```
 
-3. Install dependencies:
-
-   ```bash
    pip install flask pandas openpyxl selenium webdriver-manager
    ```
 
-4. Create the uploads directory (auto-created on run, but you can pre-create it):
+3. Set up the React frontend:
 
    ```bash
-   mkdir uploads
+   cd frontend
+   npm install
+   cd ..
    ```
 
 ## Running the Application
 
-### Step 1 – Launch Chrome with Remote Debugging
+### Step 1 — Launch Chrome with Remote Debugging
 
 Close all Chrome windows first, then start Chrome with the debugging flag:
 
@@ -63,7 +68,7 @@ Close all Chrome windows first, then start Chrome with the debugging flag:
 google-chrome --remote-debugging-port=9222
 ```
 
-**Windows (PowerShell) – Kill existing Chrome and launch fresh instance:**
+**Windows (PowerShell) — Kill existing Chrome and launch fresh instance:**
 
 ```powershell
 taskkill /IM chrome.exe /F
@@ -72,22 +77,55 @@ Start-Process "C:\Program Files\Google\Chrome\Application\chrome.exe" -ArgumentL
 
 > **Important:** You must be logged into the target dashboard in this Chrome instance before running automation.
 
-### Step 2 – Start the Flask Server
+### Step 2 — Start Development Servers
+
+**Option A — Using the batch file (Windows):**
 
 ```bash
+start-dev.bat
+```
+
+This starts both Flask (port 5000) and Vite dev server (port 3000).
+
+**Option B — Manual:**
+
+In one terminal (Flask API):
+
+```bash
+venv\Scripts\activate
 python app.py
 ```
 
-The server starts at **http://localhost:5000**.
+In another terminal (Vite frontend):
 
-### Step 3 – Use the Application
+```bash
+cd frontend
+npm run dev
+```
 
-1. Open **http://localhost:5000** in your browser.
+### Step 3 — Use the Application
+
+1. Open **http://localhost:3000** in your browser.
 2. Configure the settings (login URL, selectors, debugger address, etc.).
 3. Upload an Excel file (`.xlsx`, `.xls`, or `.csv`) containing asset IDs and optional X/Y coordinates.
 4. Click **Verify Page** to confirm Chrome connection and page readiness.
 5. Click **Start** to begin the annotation automation.
 6. Monitor progress in the live log panel.
+
+## Production Build
+
+To build the frontend and serve everything from Flask:
+
+```bash
+cd frontend
+npm run build
+cd ..
+python app.py
+```
+
+Then open **http://127.0.0.1:5000/app**.
+
+Or use the batch file: `build.bat`
 
 ## Excel File Format
 
@@ -103,27 +141,52 @@ Your spreadsheet should contain at minimum a column with asset IDs. Optionally i
 
 ## Extracting Assets
 
-1. Navigate to **http://localhost:5000/extract**.
-2. Enter the dashboard URL and click **Extract**.
-3. The tool reads all Konva.js nodes from the canvas and returns their positions.
-4. Download the results as an Excel file.
+1. Navigate to the **Extract** page.
+2. Enter the dashboard URL and click **Connect & Navigate**.
+3. Confirm the page loaded, then click **Extract All Assets**.
+4. The tool reads all Konva.js nodes from the canvas and returns their positions.
+5. Download the results as Excel or CSV.
+
+## Project Structure
+
+```
+Asset-Annotation-Automation/
+├── app.py                  # Flask API server + Selenium automation
+├── automate_assets.py      # Standalone CLI script
+├── start-dev.bat           # Start both dev servers (Windows)
+├── build.bat               # Build frontend for production
+├── frontend/               # React + Vite frontend
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── index.html
+│   └── src/
+│       ├── main.jsx        # React entry point
+│       ├── App.jsx         # Router + layout
+│       ├── index.css       # All styles
+│       ├── api.js          # API client
+│       ├── hooks/          # Custom React hooks
+│       ├── components/     # Shared components
+│       └── pages/          # Annotate & Extract pages
+├── static/                 # Legacy static files (pre-Vite)
+├── templates/              # Legacy Flask templates (pre-Vite)
+├── uploads/                # Uploaded Excel files
+└── ids.xlsx                # Sample asset data
+```
 
 ## API Endpoints
 
-| Method | Endpoint                   | Description                          |
-|--------|----------------------------|--------------------------------------|
-| GET    | `/`                        | Main annotation page                 |
-| GET    | `/api/config`              | Get current configuration            |
-| POST   | `/api/config`              | Update configuration                 |
-| POST   | `/api/upload`              | Upload an Excel file                 |
-| POST   | `/api/verify`              | Connect to Chrome and verify page    |
-| POST   | `/api/start`               | Start batch annotation               |
-| POST   | `/api/stop`                | Stop running automation              |
-| GET    | `/api/status`              | Check automation and driver status   |
-| GET    | `/api/stream`              | SSE log stream                       |
-| GET    | `/extract`                 | Asset extraction page                |
-| POST   | `/api/extract-assets`      | Extract assets from Konva canvas     |
-| POST   | `/api/download-extracted`  | Download extracted assets as Excel   |
+| Method | Endpoint                  | Description                         |
+|--------|---------------------------|-------------------------------------|
+| GET    | `/api/config`             | Get current configuration           |
+| POST   | `/api/config`             | Update configuration                |
+| POST   | `/api/upload`             | Upload an Excel file                |
+| POST   | `/api/verify`             | Connect to Chrome and verify page   |
+| POST   | `/api/start`              | Start batch annotation              |
+| POST   | `/api/stop`               | Stop running automation             |
+| GET    | `/api/status`             | Check automation and driver status  |
+| GET    | `/api/stream`             | SSE log stream                      |
+| POST   | `/api/extract-assets`     | Extract assets from Konva canvas    |
+| POST   | `/api/download-extracted` | Download extracted assets as Excel  |
 
 ## Configuration
 
@@ -150,6 +213,7 @@ Default settings are defined in `current_config` within `app.py`:
 | **"No active Chrome session"** | Click **Verify Page** before starting automation. |
 | **"Search bar not found"** | Verify the `search_bar_selector` matches the actual element on the page. Use browser DevTools to inspect. |
 | **"Konva.js not detected"** | Navigate to the floorplan page manually and ensure the canvas has fully loaded before extracting. |
+| **Frontend not loading** | Run `npm install` in the `frontend/` directory, then `npm run dev`. |
 
 ## License
 

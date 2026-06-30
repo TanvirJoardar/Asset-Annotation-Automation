@@ -546,5 +546,16 @@ def download_extracted():
         return jsonify({"error": str(e)}), 500
 
 
+# ── Serve React build (production) ──────────────────────────────
+@app.route('/app')
+@app.route('/app/<path:path>')
+def serve_react(path=''):
+    import pathlib
+    dist = pathlib.Path(__file__).parent / 'frontend' / 'dist'
+    if path and (dist / path).exists():
+        return send_from_directory(str(dist), path)
+    return send_from_directory(str(dist), 'index.html')
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000, threaded=True)
